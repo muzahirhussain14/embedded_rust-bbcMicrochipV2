@@ -1,0 +1,9 @@
+[default.general]
+chip = "nRF52833_xxAA"  # Micro:bit v2 chip
+
+[default.rtt]
+enabled = true
+up_channels = [
+    { channel = 0, mode = "NoBlockTrim", format = "String" },
+    # { channel = 1, mode = "BlockIfFull", format = "String", show_timestamps = false, socket = "127.0.0.1:12345" },
+]
