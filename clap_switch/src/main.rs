@@ -3,9 +3,10 @@
 #![allow(unused_parens)]
 
 use cortex_m_rt::entry;
+use microbit::gpio::DisplayPins;
 use microbit::hal::{gpio::Level, pac::CorePeripherals, saadc::SaadcConfig, timer::Timer};
 use microbit::{adc::Adc, Board, Peripherals};
-use embedded_hal::{delay::DelayNs}; 
+use embedded_hal::digital::OutputPin; 
 
 use rtt_target::{rprintln, rtt_init_print};
 
@@ -19,7 +20,12 @@ fn main() -> ! {
     let core_peripherals = CorePeripherals::take().unwrap();
 
     // Initialize the board (pins, i2c, etc.)
-    let board = Board::new(peripherals, core_peripherals);
+    let mut board = Board::new(peripherals, core_peripherals);
+
+    // init led pin to low
+    init_gpio_pins(&mut board);
+
+    let mut display_pins = board.display_pins;
 
     // Set up mic_run pin as an output (initially turn on the microphone)
     let mic_run = board
@@ -33,32 +39,60 @@ fn main() -> ! {
     // Create an ADC to read the analog value from the mic_in pin
     let saadc_config = SaadcConfig::default();
     let mut adc = Adc::new(board.ADC, saadc_config);
-
-    //let mut timer = Timer::new(board.TIMER0);
-    //let blink_delay_ms: u32 = 500;
     
-    let threshold: i16 = 1000;
-    let mut previous_mic_value: i16 = 0;
+    let threshold: i16 = 400;
+
+    // Get instance to Display to display led pattern
+    let mut timer: Timer<microbit::pac::TIMER0> = Timer::new(board.TIMER0);
+    let delay_ms : u32 = 400;
+    let mut show_pattern : bool = false;
+    let mut last_detection_time = 0;
+
+    timer.start(4294967295);            // maximul u32 value
 
     loop {
         // Read the microphone value from the mic_in pin
         let mic_value = adc.read_channel(&mut mic_in).unwrap();
+        let elasped_timer_ms = timer.read()/1000;
 
-        if ((mic_value - previous_mic_value).abs() >= threshold)
+        if(mic_value > threshold && elasped_timer_ms - last_detection_time > delay_ms)
         {
             // Print the microphone value
             rprintln!("Microphone value: {}", mic_value);
+
+            show_pattern = !show_pattern;
+
+            turn_led(&mut display_pins, show_pattern);
+            last_detection_time = elasped_timer_ms;
         }
-        //        timer.delay_ms(blink_delay_ms);
 
-        previous_mic_value = mic_value;
-        // Optionally, you could turn off the microphone by setting mic_run to Low
-        // mic_run.set_low().unwrap();
-
+        if (timer.reset_if_finished())
+        {
+            timer.start(4294967295);            // if timer has stopped, start again
+        }
     }
 }
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
+}
+
+fn init_gpio_pins(board: &mut Board)
+{
+    board.display_pins.col2.set_low().unwrap();
+    board.display_pins.col3.set_low().unwrap();
+    board.display_pins.col4.set_low().unwrap();
+}
+
+fn turn_led(display_pins: &mut DisplayPins, on:bool)
+{
+    if(on)
+    {
+        display_pins.row3.set_high().unwrap();
+    }
+    else 
+    {
+        display_pins.row3.set_low().unwrap();
+    }
 }
