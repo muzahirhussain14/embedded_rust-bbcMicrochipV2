@@ -43,19 +43,19 @@ fn main() -> ! {
     let threshold: i16 = 400;
 
     // Get instance to Display to display led pattern
-    let mut timer: Timer<microbit::pac::TIMER0> = Timer::new(board.TIMER0);
+    let mut timer: Timer<microbit::pac::TIMER0> = Timer::new(board.TIMER0);             // running at 1 MHZ
     let delay_ms : u32 = 400;
     let mut show_pattern : bool = false;
     let mut last_detection_time = 0;
 
-    timer.start(4294967295);            // maximul u32 value
+    timer.start(4294967295);            // maximum u32 value
 
     loop {
         // Read the microphone value from the mic_in pin
         let mic_value = adc.read_channel(&mut mic_in).unwrap();
         let elasped_timer_ms = timer.read()/1000;
 
-        if(mic_value > threshold && elasped_timer_ms - last_detection_time > delay_ms)
+        if(mic_value > threshold && elasped_timer_ms.abs_diff(last_detection_time) > delay_ms)
         {
             // Print the microphone value
             rprintln!("Microphone value: {}", mic_value);
